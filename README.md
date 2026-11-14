@@ -549,7 +549,7 @@ CREATE TABLE IF NOT EXISTS product_imports (
 | `price` | TEXT |  | Precio original antes de su validación. |
 | `price_value` | FLOAT |  | Precio convertido a decimal después de su validación. |
 | `status` | TEXT | NOT NULL | Estado de procesamiento o error del registro. |
-| `create_at` | TEXT | NOT NULL | Fecha de creación del registro, se almacena en formato ISO YYYY-MM-DD HH24:MI:SS. |
+| `create_at` | TEXT | NOT NULL | Fecha de creación del registro, se almacena en formato ISO yyyy-MM-dd HH:mm:ss. |
 ---
 
 ## `process_id`
