@@ -13,23 +13,51 @@ def show(parent: tkinter.Tk, on_updated=None) -> None:
     """
     Ventana para buscar y editar un producto.
     """
+    
+    def enable_fields() -> None:
+        """
+        Habilita los campos para editar el producto.
+        """
+        name_entry.config(state="normal")
+        category_combo.config(state="readonly")
+        quantity_entry.config(state="normal")
+        currency_combo.config(state="readonly")
+        price_entry.config(state="normal")
+        description_text.config(state="normal", background="white")
+        update_button.config(state="normal")
+        clear_button.config(state="normal")
+
+    def disable_fields() -> None:
+        """
+        Deshabilita los campos del formulario.
+        """
+        name_entry.config(state="readonly")
+        category_combo.config(state="disabled")
+        quantity_entry.config(state="readonly")
+        currency_combo.config(state="disabled")
+        price_entry.config(state="readonly")
+        description_text.config(state="disabled", background=window.cget("background"))
+        update_button.config(state="disabled")
+        clear_button.config(state="disabled")
 
     def clear() -> None:
         """
-        Limpia los campos del formulario.
+        Limpia y deshabilita los campos del formulario.
         """
-        
         nonlocal product_id, original_name
-        
         product_id = None
         original_name = ""
+        enable_fields()
+        id_entry.config(state="normal")
+        id_entry.delete(0, tkinter.END)
+        id_entry.config(state="readonly")
         name_entry.delete(0, tkinter.END)
         category_combo.set("")
         quantity_entry.delete(0, tkinter.END)
         currency_combo.current(0)
         price_entry.delete(0, tkinter.END)
         description_text.delete("1.0", tkinter.END)
-        update_button.config(state="disabled")
+        disable_fields()
         search_button.focus_set()
 
     def load_product(product: dict) -> None:
@@ -37,9 +65,13 @@ def show(parent: tkinter.Tk, on_updated=None) -> None:
         Carga los datos del producto en el formulario.
         """
         nonlocal product_id, original_name
-    
         product_id = product["id"]
         original_name = product["name"]
+        enable_fields()
+        id_entry.config(state="normal")
+        id_entry.delete(0, tkinter.END)
+        id_entry.insert(0, str(product_id))
+        id_entry.config(state="readonly")
         name_entry.delete(0, tkinter.END)
         name_entry.insert(0, original_name)
         category_combo.set("")
@@ -57,8 +89,6 @@ def show(parent: tkinter.Tk, on_updated=None) -> None:
         price_entry.insert(0, utils.format_price(product["price"]))
         description_text.delete("1.0", tkinter.END)
         description_text.insert("1.0", product.get("description") or "")
-
-        update_button.config(state="normal")
         name_entry.focus_set()
         name_entry.select_range(0, tkinter.END)
 
@@ -66,7 +96,6 @@ def show(parent: tkinter.Tk, on_updated=None) -> None:
         """
         Solicita un ID o nombre, y llena el formulario del producto.
         """
-        
         search_text: str | None = tkinter.simpledialog.askstring("Buscar producto", "Buscar producto por ID o palabras clave:", parent=window)
         if search_text is None:
             return
@@ -158,7 +187,7 @@ def show(parent: tkinter.Tk, on_updated=None) -> None:
     window.resizable(False, False)
     window.transient(parent)
 
-    if product_dao.count() == 0:
+    if product_dao.is_empty():
         tkinter.messagebox.showerror("Editar producto", "No hay inventario de productos.", parent=window)
         window.destroy()
         return
@@ -167,53 +196,58 @@ def show(parent: tkinter.Tk, on_updated=None) -> None:
     frame.pack(expand=True, fill="both", padx=25, pady=20)
     frame.columnconfigure(1, weight=1)
 
-    tkinter.Label(frame, text="Editar producto", font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=3, pady=(0, 18))
-    tkinter.Label(frame, text="Nombre:").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=4)
+    tkinter.Label(frame, text="Editar producto", font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 18))
+    
+    tkinter.Label(frame, text="ID:").grid(row=1, column=0, sticky="w", padx=(0, 10), pady=4)
+    id_entry: tkinter.Entry = tkinter.Entry(frame, state="readonly")
+    id_entry.grid(row=1, column=1, columnspan=2, sticky="ew", pady=4)
 
-    name_entry: tkinter.Entry = tkinter.Entry(frame)
-    name_entry.grid(row=1, column=1, sticky="ew", pady=4)
-
-    search_button: tkinter.Button = tkinter.Button(frame, text="Buscar", width=10, command=search_product)
-    search_button.grid(row=1, column=2, padx=(8, 0), pady=4)
-
+    tkinter.Label(frame, text="Nombre:").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=4)
+    name_entry: tkinter.Entry = tkinter.Entry(frame, state="readonly")
+    name_entry.grid(row=2, column=1, columnspan=2, sticky="ew", pady=4)
+    
     categories: list[dict] = category_dao.find_all()
     category_names: list[str] = []
     for category in categories:
         category_names.append(category["name"])
 
-    tkinter.Label(frame, text="Categoría:").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=4)
-    category_combo: tkinter.ttk.Combobox = tkinter.ttk.Combobox(frame, values=category_names, state="readonly")
-    category_combo.grid(row=2, column=1, columnspan=2, sticky="ew", pady=4)
+    tkinter.Label(frame, text="Categoría:").grid(row=3, column=0, sticky="w", padx=(0, 10), pady=4)
+    category_combo: tkinter.ttk.Combobox = tkinter.ttk.Combobox(frame, values=category_names, state="disabled")
+    category_combo.grid(row=3, column=1, columnspan=2, sticky="ew", pady=4)
     
-    tkinter.Label(frame, text="Cantidad:").grid(row=3, column=0, sticky="w", padx=(0, 10), pady=4)
-    quantity_entry: tkinter.Entry = tkinter.Entry(frame)
-    quantity_entry.grid(row=3, column=1, columnspan=2, sticky="ew", pady=4)
+    tkinter.Label(frame, text="Cantidad:").grid(row=4, column=0, sticky="w", padx=(0, 10), pady=4)
+    quantity_entry: tkinter.Entry = tkinter.Entry(frame, state="readonly")
+    quantity_entry.grid(row=4, column=1, columnspan=2, sticky="ew", pady=4)
 
-    tkinter.Label(frame, text="Moneda:").grid(row=4, column=0, sticky="w", padx=(0, 10), pady=4)
-    currency_combo: tkinter.ttk.Combobox = tkinter.ttk.Combobox(frame, values=config.CURRENCIES, state="readonly")
-    currency_combo.grid(row=4, column=1, columnspan=2, sticky="ew", pady=4)
+    tkinter.Label(frame, text="Moneda:").grid(row=5, column=0, sticky="w", padx=(0, 10), pady=4)
+    currency_combo: tkinter.ttk.Combobox = tkinter.ttk.Combobox(frame, values=config.CURRENCIES, state="disabled")
+    currency_combo.grid(row=5, column=1, columnspan=2, sticky="ew", pady=4)
     currency_combo.current(0)
     
-    tkinter.Label(frame, text="Precio:").grid(row=5, column=0, sticky="w", padx=(0, 10), pady=4)
-    price_entry: tkinter.Entry = tkinter.Entry(frame)
-    price_entry.grid(row=5, column=1, columnspan=2, sticky="ew", pady=4)
+    tkinter.Label(frame, text="Precio:").grid(row=6, column=0, sticky="w", padx=(0, 10), pady=4)
+    price_entry: tkinter.Entry = tkinter.Entry(frame, state="readonly", )
+    price_entry.grid(row=6, column=1, columnspan=2, sticky="ew", pady=4)
 
-    tkinter.Label(frame, text="Descripción:").grid(row=6, column=0, sticky="nw", padx=(0, 10), pady=4)
-    description_text: tkinter.Text = tkinter.Text(frame, height=5)
-    description_text.grid(row=6, column=1, columnspan=2, sticky="ew", pady=4)
+    tkinter.Label(frame, text="Descripción:").grid(row=7, column=0, sticky="nw", padx=(0, 10), pady=4)
+    description_text: tkinter.Text = tkinter.Text(frame, height=5, state="disabled", background=window.cget("background"))
+    description_text.grid(row=7, column=1, columnspan=2, sticky="ew", pady=4)
 
     button_frame: tkinter.Frame = tkinter.Frame(frame)
-    button_frame.grid(row=7, column=0, columnspan=3, pady=(12, 0))
+    button_frame.grid(row=8, column=0, columnspan=3, pady=(12, 0))
+
+    search_button: tkinter.Button = tkinter.Button(button_frame, text="Buscar", width=10, command=search_product)
+    search_button.pack(side="left", padx=5)
 
     update_button: tkinter.Button = tkinter.Button(button_frame, text="Actualizar", width=10, state="disabled", command=update_product)
     update_button.pack(side="left", padx=5)
 
-    tkinter.Button(button_frame, text="Limpiar", width=10, command=clear).pack(side="left", padx=5)
+    clear_button: tkinter.Button = tkinter.Button(button_frame, text="Limpiar", width=10, state="disabled", command=clear)
+    clear_button.pack(side="left", padx=5)
+    
     tkinter.Button(button_frame, text="Cancelar", width=10, command=window.destroy).pack(side="left", padx=5)
 
     window.bind("<Return>", lambda event: update_product())
     window.bind("<Escape>", lambda event: window.destroy())
-    window.bind("<Control-f>", lambda event: search_product())
 
     utils.center_window(window, 500, 390)
     window.update_idletasks()

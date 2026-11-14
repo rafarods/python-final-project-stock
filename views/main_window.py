@@ -86,7 +86,7 @@ def show(user: dict) -> bool:
         """
         Vaciar inventario
         """
-        if product_dao.count() == 0:
+        if product_dao.is_empty():
             tkinter.messagebox.showerror("Vaciar inventario", "No hay inventario cargado.", parent=root)
             return
         if not tkinter.messagebox.askyesno("Vaciar inventario", f"¿Estás seguro de que desea vaciar todo el inventario? Esta acción no se puede deshacer.", icon="warning", parent=root):
@@ -99,7 +99,7 @@ def show(user: dict) -> bool:
         """
         Vaciar historial
         """
-        if product_dao.count_imports() == 0:
+        if product_dao.is_empty_imports():
             tkinter.messagebox.showerror("Eliminar historial", "No hay registros historicos.", parent=root)
             return
         if not tkinter.messagebox.askyesno("Eliminar historial", f"¿Estás seguro de que desea eliminar el historial? Esta acción no se puede deshacer.", icon="warning", parent=root):

@@ -13,8 +13,6 @@ def show(parent: tkinter.Misc) -> None:
         """
         Cargar listado
         """
-        nonlocal category_var, search_entry
-        
         filter: dict = {}
         category_name = category_var.get()
         if category_name not in ("", "Todas"):
@@ -37,9 +35,15 @@ def show(parent: tkinter.Misc) -> None:
         total_var.set(f"{utils.format_quantity(len(tree.get_children()))} registros")
 
     window = tkinter.Toplevel(parent)
+    window.withdraw()
     window.title("Listado de Productos")
+    window.resizable(False, False)
     window.transient(parent)
-    utils.center_window(window, 800, 600)
+
+    if product_dao.is_empty():
+        tkinter.messagebox.showerror("Listado de Productos", "No hay inventario de productos que mostrar.", parent=window)
+        window.destroy()
+        return
 
     filter_frame = tkinter.ttk.Frame(window, padding=10)
     filter_frame.pack(fill="x")
@@ -105,3 +109,9 @@ def show(parent: tkinter.Misc) -> None:
     search_entry.bind("<KeyRelease>", load_list)
 
     load_list()
+    
+    utils.center_window(window, 800, 600)
+    window.update_idletasks()
+    window.deiconify()
+    window.grab_set()
+    window.after_idle(search_entry.focus_set)

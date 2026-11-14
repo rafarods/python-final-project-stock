@@ -51,9 +51,15 @@ def show(parent: tkinter.Misc, process_id: str | None = None) -> None:
         total_var.set(f"{utils.format_quantity(len(tree.get_children()))} registros")
 
     window = tkinter.Toplevel(parent)
+    window.withdraw()
     window.title("Historial de importaciones")
+    window.resizable(False, False)
     window.transient(parent)
-    utils.center_window(window, 1300, 650)
+
+    if product_dao.is_empty_imports():
+        tkinter.messagebox.showerror("Historial de importaciones", "No hay historial de importaciones que mostrar.", parent=window)
+        window.destroy()
+        return
 
     filter_frame = tkinter.ttk.Frame(window, padding=10)
     filter_frame.pack(fill="x")
@@ -136,3 +142,9 @@ def show(parent: tkinter.Misc, process_id: str | None = None) -> None:
         else:
             process_combo.current(0)
         load_list()
+    
+    utils.center_window(window, 800, 600)
+    window.update_idletasks()
+    window.deiconify()
+    window.grab_set()
+    window.after_idle(process_combo.focus_set)

@@ -29,6 +29,9 @@ def count() -> int:
         return -1
     return row.get("total")
 
+def is_empty() -> bool:
+    return count() <= 0
+
 def count_imports() -> int:
     """
     Devuelve el total de productos importados
@@ -38,11 +41,14 @@ def count_imports() -> int:
         return -1
     return row.get("total")
 
+def is_empty_imports() -> bool:
+    return count_imports() <= 0
+
 def delete(id: int) -> int | None:
     """
     Eliminar un producto
     """
-    return database.delete("DELETE FROM products WHERE id = ?", id)
+    return database.delete("DELETE FROM products WHERE id = ?", (id,))
 
 def delete_all() -> int:
     """

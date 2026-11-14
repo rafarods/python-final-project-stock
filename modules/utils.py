@@ -250,8 +250,8 @@ def export_stock_csv(filename: str, lang: typing.Literal["es", "en"] = config.LA
     """
     Exporta productos en formato CSV.
     """
-    fields: tuple[str, ...] = ("id", "name", "description", "category", "currency", "price", "quantity" )
-    header: tuple[str, ...] = ("ID", "Producto", "Descripción", "Categoría", "Moneda", "Precio", "Cantidad")
+    fields: tuple[str, ...] = ("id", "name", "description", "category", "quantity", "currency", "price")
+    header: tuple[str, ...] = ("ID", "Producto", "Descripción", "Categoría", "Cantidad", "Moneda", "Precio")
     rows: list[dict] = product_dao.find_all()
     for row in rows:
         row["price"] = format_price(row["price"], lang)
