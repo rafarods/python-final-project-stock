@@ -6,8 +6,6 @@ Sistema de gestión de inventario desarrollado en **Python**, utilizando **SQLit
 
 El proyecto surge como entrega final de un curso de Python. Parte de los requerimientos establecidos en la consigna y los amplía mediante una implementación más completa, incorporando autenticación de usuarios, roles, categorías normalizadas, validaciones e importación de productos desde archivos CSV.
 
-> **Estado:** proyecto actualmente en desarrollo.
-
 ---
 
 ## Información del proyecto
@@ -72,7 +70,7 @@ El sistema contempla:
 - Reportes de inventario.
 - Autenticación de usuarios.
 - Control de acceso mediante roles.
-- Importación de productos desde archivos CSV.
+- Importación y exportación de productos desde archivos CSV.
 - Validación de datos importados.
 
 ---
@@ -123,7 +121,7 @@ Además de los requisitos básicos de la consigna, el proyecto incorpora mejoras
 - Interfaz gráfica con Tkinter.
 - Autenticación de usuarios.
 - Roles de usuario.
-- Gestión independiente de categorías.
+- Gestión de categorías.
 - Normalización de nombres.
 - Prevención de productos duplicados por categoría.
 - Configuración centralizada.
@@ -132,7 +130,7 @@ Además de los requisitos básicos de la consigna, el proyecto incorpora mejoras
 - Moneda configurable.
 - Importación desde archivos CSV.
 - Validación previa de registros importados.
-- Tabla de staging para importaciones.
+- Tabla de preparación (_staging_) para importaciones.
 - Estados de procesamiento y error.
 - Registro histórico del usuario que realizó una importación.
 
@@ -150,10 +148,15 @@ config.py
 
 ## Base de datos
 
-La ubicación del archivo SQLite se determina mediante:
+La ubicación y nombre del archivo SQLite se determina mediante:
 
 ```python
-DB_PATH: pathlib.Path = pathlib.Path(__file__).resolve().parent / "stock.db"
+# Nombre de la DB
+DB_NAME: str = "stock.db"
+
+# Ruta la DB de SQLite usando este directorio
+DB_PATH: pathlib.Path = pathlib.Path(__file__).resolve().parent / DB_NAME
+
 ```
 
 Por lo tanto, la aplicación utiliza:
@@ -169,7 +172,10 @@ como base de datos local.
 ## Aplicación
 
 ```python
+# Nombre de la aplicación
 APP_NAME: str = "Manejo de Inventario"
+
+# Versión de la aplicación
 APP_VERSION: str = "1.0"
 ```
 
@@ -178,10 +184,8 @@ APP_VERSION: str = "1.0"
 ## Autor
 
 ```python
-AUTHOR: dict[str, str] = {
-    "name": "Rafael Rodríguez",
-    "email": "rafarods@outlook.com"
-}
+# Autor o desarrollador
+AUTHOR: dict[str, str] = {"name": "Rafael Rodríguez", "email": "rafarods@outlook.com"}
 ```
 
 ---
@@ -203,8 +207,22 @@ Representa un usuario estándar de la aplicación.
 
 Representa un usuario con privilegios administrativos.
 
-La aplicación es responsable de determinar las operaciones permitidas para cada rol.
+### ROLE_USER_RESOURCES
 
+Permite activar o desactivar los accesos en el menú del usuario estándar.
+```python
+# Acceso a los recursos del menú (sólo ROLE_USER)
+ROLE_USER_RESOURCES: tuple[str, ...] = (
+    # menú de producto
+    "menu_stock", "add_product", "edit_product", "search_product", "delete_product", "import_list", "import_stock", "export_stock", "list_product",
+    # menú de categoria
+    "menu_category", "add_category", "edit_category", "delete_category", "search_category", "list_category",
+    # menú de aplicación
+    "menu_application", "exit", "logout", "change_password",
+    # menú usuarios
+    #"menu_users", "create_user", "edit_user", "delete_user", "list_users",
+)
+```
 ---
 
 ## Usuario administrador inicial
@@ -212,25 +230,23 @@ La aplicación es responsable de determinar las operaciones permitidas para cada
 La configuración incluye un usuario administrativo inicial:
 
 ```python
-ADMIN: dict[str, str] = {
-    "username": "demo",
-    "password": "demo"
-}
+# Superusuario
+ADMIN: dict[str, str] = {"username": "demo", "password": "demo"}
 ```
 
 > **Importante:** estas credenciales están destinadas al desarrollo y demostración de la aplicación.
 
 ---
 
-## Moneda
+## Monedas
 
-La moneda predeterminada de la aplicación es:
+La aplicación permite utilizar diferentes monedas:
 
 ```python
-CURRENCY: str = "ARS"
+CURRENCIES: tuple[str, ...] = ("ARS", "USD")
 ```
 
-Los productos pueden utilizar este valor desde la aplicación cuando corresponda asignar la moneda predeterminada.
+Los productos pueden utilizar este valor desde la aplicación cuando corresponda asignar la moneda.
 
 ---
 
@@ -238,13 +254,13 @@ Los productos pueden utilizar este valor desde la aplicación cuando corresponda
 
 ```python
 MIN_PRICE: float = 0.01
-MAX_PRICE: float = 999_999_999.99
+MAX_PRICE: float = 999_999_999
 ```
 
 Por lo tanto:
 
 ```text
-0.01 <= price <= 999999999.99
+0.01 <= price <= 999999999
 ```
 
 ---
@@ -292,17 +308,16 @@ Almacena las categorías utilizadas para clasificar los productos.
 ```sql
 CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    normalized_name TEXT NOT NULL UNIQUE,
-    UNIQUE (name)
-);
+    name TEXT NOT NULL UNIQUE,
+    normalized_name TEXT NOT NULL UNIQUE
+)
 ```
 
 ## Columnas
 
 | Columna | Tipo | Restricciones | Descripción |
 |---|---|---|---|
-| `id` | INTEGER | PRIMARY KEY | Identificador único de la categoría. |
+| `id` | INTEGER | PRIMARY KEY | Identificador único de la categoría. Autoincrementado por defecto. |
 | `name` | TEXT | NOT NULL, UNIQUE | Nombre visible de la categoría. |
 | `normalized_name` | TEXT | NOT NULL, UNIQUE | Nombre normalizado utilizado para búsquedas y control de duplicados. |
 
@@ -320,10 +335,10 @@ Por ejemplo:
 
 Esto permite comparar categorías independientemente de diferencias como mayúsculas, minúsculas o acentos.
 
-La restricción:
+Las restriccións:
 
 ```sql
-UNIQUE (normalized_name)
+normalized_name TEXT NOT NULL UNIQUE
 ```
 
 impide registrar categorías equivalentes después de aplicar la normalización.
@@ -340,24 +355,24 @@ CREATE TABLE IF NOT EXISTS products (
     category_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     normalized_name TEXT NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT,
     quantity INTEGER NOT NULL,
     currency TEXT NOT NULL,
     price FLOAT NOT NULL,
     UNIQUE (category_id, normalized_name),
     FOREIGN KEY (category_id) REFERENCES categories (id)
-);
+)
 ```
 
 ## Columnas
 
 | Columna | Tipo | Restricciones | Descripción |
 |---|---|---|---|
-| `id` | INTEGER | PRIMARY KEY | Identificador único del producto. |
+| `id` | INTEGER | PRIMARY KEY | Identificador único del producto. Autoincrementado por defecto. |
 | `category_id` | INTEGER | NOT NULL, FOREIGN KEY | Categoría a la que pertenece el producto. |
 | `name` | TEXT | NOT NULL | Nombre visible del producto. |
 | `normalized_name` | TEXT | NOT NULL | Nombre normalizado para búsquedas y control de duplicados. |
-| `description` | TEXT | NOT NULL | Descripción del producto. |
+| `description` | TEXT | NULL | Descripción del producto (opcional). |
 | `quantity` | INTEGER | NOT NULL | Cantidad disponible. |
 | `currency` | TEXT | NOT NULL | Moneda utilizada para expresar el precio. |
 | `price` | FLOAT | NOT NULL | Precio unitario del producto. |
@@ -420,7 +435,7 @@ La restricción:
 UNIQUE (category_id, normalized_name)
 ```
 
-establece que un producto normalizado debe ser único dentro de una categoría.
+Establece que un producto normalizado debe ser único dentro de una categoría.
 
 Por ejemplo:
 
@@ -442,7 +457,7 @@ category_id | normalized_name
 1           | premium
 ```
 
-no es válido.
+No es válido.
 
 Por tanto, la combinación:
 
@@ -450,7 +465,7 @@ Por tanto, la combinación:
 category_id + normalized_name
 ```
 
-determina la unicidad lógica del producto dentro de cada categoría.
+Determina la unicidad lógica del producto dentro de cada categoría.
 
 ---
 
@@ -463,18 +478,20 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
-    role TEXT NOT NULL
-);
+    role TEXT NOT NULL,
+    can_change_password BOOL NOT NULL
+)
 ```
 
 ## Columnas
 
 | Columna | Tipo | Restricciones | Descripción |
 |---|---|---|---|
-| `id` | INTEGER | PRIMARY KEY | Identificador único del usuario. |
+| `id` | INTEGER | PRIMARY KEY | Identificador único del usuario. Autoincrementado por defecto. |
 | `username` | TEXT | NOT NULL, UNIQUE | Nombre utilizado para iniciar sesión. |
 | `password` | TEXT | NOT NULL | Contraseña del usuario. |
 | `role` | TEXT | NOT NULL | Rol asignado al usuario. |
+| `can_change_password` | BOOL | NOT NULL | Indica si el usuario tiene permitido cambiar la contraseña. |
 
 Los roles disponibles actualmente son:
 
@@ -487,44 +504,52 @@ ROLE_ADMIN
 
 # Tabla `product_imports`
 
-`product_imports` funciona como una tabla de **staging** para almacenar los registros provenientes de archivos CSV antes de incorporarlos definitivamente al inventario.
+`product_imports` funciona como una tabla de preparación **staging** para almacenar los registros provenientes de archivos CSV antes de incorporarlos definitivamente al inventario.
 
 ```sql
 CREATE TABLE IF NOT EXISTS product_imports (
     id INTEGER PRIMARY KEY,
     process_id TEXT NOT NULL,
+    line INTEGER NOT NULL,
     username TEXT NOT NULL,
     filename TEXT,
-    category TEXT,
-    normalized_category TEXT,
     name TEXT,
     normalized_name TEXT,
     description TEXT,
+    category TEXT,
+    normalized_category TEXT,
     quantity TEXT,
+    quantity_value INT,
     currency TEXT,
     price TEXT,
-    status TEXT NOT NULL
-);
+    price_value FLOAT,
+    status TEXT NOT NULL,
+    create_at TEXT NOT NULL,
+    UNIQUE (process_id, line)
+)
 ```
 
 ## Columnas
 
 | Columna | Tipo | Restricciones | Descripción |
 |---|---|---|---|
-| `id` | INTEGER | PRIMARY KEY | Identificador interno del registro importado. |
-| `process_id` | TEXT | NOT NULL | Identifica el proceso de importación al que pertenece el registro. |
+| `id` | INTEGER | PRIMARY KEY | Identificador interno del registro importado. Autoincrementado por defecto. |
+| `process_id` | TEXT | NOT NULL | Identifica el proceso de importación al que pertenece el registro. Se almacenan texto UUID. |
+| `line` | INTEGER | NOT NULL | Número de línea o fila en el archivo importado. |
 | `username` | TEXT | NOT NULL | Usuario que realizó la importación. |
-| `filename` | TEXT |  | Nombre del archivo importado. |
-| `category` | TEXT |  | Categoría recibida desde el archivo. |
-| `normalized_category` | TEXT |  | Categoría normalizada. |
+| `filename` | TEXT |  | Ruta completa del archivo importado. |
 | `name` | TEXT |  | Nombre del producto recibido. |
 | `normalized_name` | TEXT |  | Nombre normalizado del producto. |
-| `description` | TEXT |  | Descripción recibida. |
+| `description` | TEXT |  | Descripción del producto. |
+| `category` | TEXT |  | Categoría recibida desde el archivo. |
+| `normalized_category` | TEXT |  | Categoría normalizada. |
 | `quantity` | TEXT |  | Cantidad original antes de su validación. |
+| `quantity_value` | INT |  | Cantidad convertida a entera después de su validación. |
 | `currency` | TEXT |  | Moneda recibida. |
 | `price` | TEXT |  | Precio original antes de su validación. |
+| `price_value` | FLOAT |  | Precio convertido a decimal después de su validación. |
 | `status` | TEXT | NOT NULL | Estado de procesamiento o error del registro. |
-
+| `create_at` | TEXT | NOT NULL | Fecha de creación del registro, se almacena en formato ISO YYYY-MM-DD HH24:MI:SS. |
 ---
 
 ## `process_id`
@@ -576,7 +601,7 @@ no constituye una referencia formal hacia:
 users.username
 ```
 
-Esta decisión permite conservar la información histórica del usuario asociado con una importación independientemente de posteriores modificaciones realizadas sobre la tabla `users`.
+Esta decisión permite conservar la información histórica del usuario asociado con una importación independientemente de posteriores modificaciones o eliminaciones realizadas sobre la tabla `users`.
 
 ---
 
@@ -603,11 +628,19 @@ price = "2500.90"
 price = "incorrecto"
 ```
 
-Después de la validación, los valores aceptados pueden convertirse a los tipos definitivos utilizados por `products`:
+Después de la validación, los valores aceptados son convertidos en las columnas `price_value` y `quantity_value` que son utilizados en `products`:
 
 ```text
-product_imports.quantity TEXT  -> products.quantity INTEGER
-product_imports.price    TEXT  -> products.price    FLOAT
+quantity = "100"
+quantity_value = 1000
+
+price = "2500.90"
+price_value = 2500.90
+```
+
+```text
+product_imports.quantity_value INTEGER  -> products.quantity INTEGER
+product_imports.price_value    FLOAT    -> products.price    FLOAT
 ```
 
 ---
@@ -627,10 +660,14 @@ Los códigos utilizados para identificar el estado de cada registro importado se
 | `ER5` | Precio mayor que el máximo permitido |
 | `ER6` | Cantidad menor que el mínimo permitido |
 | `ER7` | Cantidad mayor que el máximo permitido |
+| `ER8` | Nombre del producto no encontrado |
+| `ER9` | Sólo se permiten monedas: ARS,USD,... |
+| `ER10` | Nombre de la categoria no encontrada |
 
 La configuración correspondiente es:
 
 ```python
+# Código de error al cargar un archivo CSV
 STATUS_CODES: dict[str, str] = {
     "SP0": "Sin procesar",
     "PR0": "Procesado",
@@ -641,6 +678,9 @@ STATUS_CODES: dict[str, str] = {
     "ER5": f"Precio es mayor que {MAX_PRICE}",
     "ER6": f"Cantidad es menor que {MIN_QUANTITY}",
     "ER7": f"Cantidad es mayor que {MAX_QUANTITY}",
+    "ER8": "Nombre del producto no encontrado",
+    "ER9": f"Sólo se permiten monedas: {", ".join(CURRENCIES)}",
+    "ER10": "Nombre de la categoria no encontrada",
 }
 ```
 
@@ -670,44 +710,9 @@ Registro válido
      └── products
 ```
 
-`product_imports` actúa como una capa intermedia entre los datos externos y las tablas definitivas del inventario.
+`product_imports` actúa como una capa de preparación intermedia entre los datos externos y las tablas definitivas del inventario.
 
 Esto permite validar los registros antes de incorporarlos a `categories` y `products`.
-
----
-
-# Datos de ejemplo
-
-La aplicación contiene productos iniciales definidos mediante `SAMPLE_DATA`.
-
-```python
-SAMPLE_DATA: tuple[dict[str, str | int | float], ...] = (
-    {
-        "name": "Leche 1L",
-        "description": "Leche de cartón",
-        "quantity": 12,
-        "currency": CURRENCY,
-        "price": 2500.90,
-        "category": "Lácteos"
-    },
-    {
-        "name": "Carne Vacuna 1 kg",
-        "description": "Carne Vacuna Novillo",
-        "quantity": 100,
-        "currency": CURRENCY,
-        "price": 160000.23,
-        "category": "Frescos"
-    },
-)
-```
-
-La moneda utiliza la constante:
-
-```python
-CURRENCY
-```
-
-en lugar de repetir directamente el valor `"ARS"` en cada registro.
 
 ---
 
@@ -733,17 +738,17 @@ products
 ├── currency
 └── price
 
-
 users
 ├── id
 ├── username
 ├── password
-└── role
-
+├── role
+└── can_change_password
 
 product_imports
 ├── id
 ├── process_id
+├── linea
 ├── username
 ├── filename
 ├── category
@@ -752,9 +757,12 @@ product_imports
 ├── normalized_name
 ├── description
 ├── quantity
+├── quantity_value
 ├── currency
 ├── price
-└── status
+├── price_value
+├── status
+└── create_at
 ```
 
 ## Relaciones formales
@@ -796,12 +804,12 @@ La aplicación gestiona las reglas de negocio:
 - Normalización de nombres.
 - Validación de cantidades.
 - Validación de precios.
-- Moneda predeterminada.
+- Monedas.
 - Autenticación.
 - Roles.
-- Gestión del inventario.
+- Gestión del inventario y productos.
 - Gestión de categorías.
-- Importaciones CSV.
+- Importaciones y exportaciones a CSV.
 - Estados de procesamiento.
 - Interfaz gráfica.
 
@@ -883,8 +891,6 @@ El proyecto busca cumplir los requisitos obligatorios y complementarlos con func
 | Interfaz | Tkinter |
 | Código modular | Separación de responsabilidades |
 
-> La documentación de reportes, consultas y funcionalidades adicionales será incorporada a medida que estos componentes sean finalizados y estabilizados.
-
 ---
 
 # Mejoras adicionales
@@ -898,7 +904,7 @@ Respecto de los requerimientos mínimos de la consigna, el proyecto incorpora:
 5. **Validaciones** para precios y cantidades.
 6. **Configuración centralizada** mediante `config.py`.
 7. **Importación CSV** para cargas masivas de productos.
-8. **Staging de importaciones** para validar los datos antes de modificar el inventario.
+8. **Preparación de importaciones** para validar los datos antes de modificar el inventario.
 9. **Códigos de estado** para identificar el resultado de cada registro importado.
 10. **Trazabilidad** mediante el registro del usuario y proceso asociados a cada importación.
 
@@ -906,7 +912,7 @@ Respecto de los requerimientos mínimos de la consigna, el proyecto incorpora:
 
 # Estado del proyecto
 
-El proyecto se encuentra actualmente **en desarrollo**.
+El proyecto se encuentra actualmente **en entregado**, pero pudiera tener mejoras en el futuro.
 
 La estructura de la base de datos y la configuración general ya forman parte del diseño de la aplicación.
 
